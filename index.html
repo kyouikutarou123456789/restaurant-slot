@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Restaurant Slot Machine (Image Version)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      padding: 1rem;
+      text-align: center;
+      background: linear-gradient(to bottom, #FFE8F0 0 55%, #E8F3FF 55% 100%);
+    }
+    h1 { margin-top: 0; font-size: 1.6rem; }
+
+    .slot-container {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      max-width: 980px;
+      margin: 0 auto;
+    }
+    @media (min-width: 800px) {
+      .slot-container {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    .reel {
+      background: #fff;
+      border-radius: 16px;
+      padding: 0.8rem;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .reel.main,
+    .reel.drink,
+    .reel.dessert { background: #fff7fb; }
+    .reel.price   { background: #f3fbff; }
+
+    .reel h2 {
+      margin: 0 0 0.4rem;
+      font-size: 1.1rem;
+    }
+
+    .slot-frame {
+      border: 3px solid #ccc;
+      border-radius: 12px;
+      background: #fafafa;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      margin-bottom: 0.4rem;
+    }
+    .slot-frame img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .slot-text {
+      font-size: 0.9rem;
+      line-height: 1.3;
+      white-space: pre-line;
+      min-height: 2.2em;
+    }
+
+    #priceBox {
+      border: 3px solid #ccc;
+      border-radius: 12px;
+      padding: 0.8rem;
+      background: #fafafa;
+      height: 4.2em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      white-space: pre-line;
+      line-height: 1.3;
+      margin-bottom: 0.4rem;
+      font-weight: bold;
+    }
+
+    button {
+      padding: 0.6rem 1.2rem;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: bold;
+      color: #222;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+      margin-top: 0.2rem;
+    }
+    #spinAllBtn { background: #b8f2e6; width: 100%; max-width: 260px; }
+    .hint {
+      font-size: 0.8rem;
+      color: #555;
+      margin-top: 0.4rem;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Restaurant Slot Machine</h1>
+
+<button id="spinAllBtn">🎰 SPIN ALL</button>
+<p class="hint">
+  I'd like ～.（アイドゥライク ～） / It's ～ yen.（イッツ ～ エン）
+</p>
+
+<div class="slot-container">
+  <!-- メインディッシュ -->
+  <div class="reel main">
+    <h2>🍽 Main</h2>
+    <div class="slot-frame">
+      <img id="foodImg" src="" alt="main dish">
+    </div>
+    <div class="slot-text" id="foodText">-</div>
+  </div>
+
+  <!-- ドリンク -->
+  <div class="reel drink">
+    <h2>🥤 Drink</h2>
+    <div class="slot-frame">
+      <img id="drinkImg" src="" alt="drink">
+    </div>
+    <div class="slot-text" id="drinkText">-</div>
+  </div>
+
+  <!-- デザート -->
+  <div class="reel dessert">
+    <h2>🍰 Dessert</h2>
+    <div class="slot-frame">
+      <img id="dessertImg" src="" alt="dessert">
+    </div>
+    <div class="slot-text" id="dessertText">-</div>
+  </div>
+
+  <!-- 会計 -->
+  <div class="reel price">
+    <h2>💴 Price</h2>
+    <div id="priceBox">-</div>
+    <div class="slot-text" id="priceReading"> </div>
+  </div>
+</div>
+
+<script>
+/* ========= 効果音 ========= */
+let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+}
+function playKorokoro() {
+  initAudio();
+  const ctx = audioCtx;
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = "square";
+  o.frequency.value = 300;
+  g.gain.setValueAtTime(0.001, ctx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+  o.connect(g); g.connect(ctx.destination);
+  o.start(); o.stop(ctx.currentTime + 0.1);
+}
+function playChiin() {
+  initAudio();
+  const ctx = audioCtx;
+  const o1 = ctx.createOscillator();
+  const g1 = ctx.createGain();
+  o1.type = "sine"; o1.frequency.value = 660;
+  const o2 = ctx.createOscillator();
+  const g2 = ctx.createGain();
+  o2.type = "sine"; o2.frequency.value = 1320;
+  const t = ctx.currentTime;
+  g1.gain.setValueAtTime(0.001, t);
+  g1.gain.exponentialRampToValueAtTime(0.4, t + 0.03);
+  g1.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+  g2.gain.setValueAtTime(0.001, t);
+  g2.gain.exponentialRampToValueAtTime(0.12, t + 0.03);
+  g2.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+  o1.connect(g1); g1.connect(ctx.destination);
+  o2.connect(g2); g2.connect(ctx.destination);
+  o1.start(t); o1.stop(t + 1);
+  o2.start(t); o2.stop(t + 1);
+}
+
+/* ========= カタカナ読み ========= */
+const reading = {
+  "rice":"ライス","rice ball":"ライスボール","curry and rice":"カレーアンドライス",
+  "grilled eel":"グリルドイール","grilled fish":"グリルドフィッシュ","bread":"ブレッド",
+  "sandwich":"サンドウィッチ","pancake":"パンケーキ","pizza":"ピザ","hamburger":"ハンバーガー",
+  "hot dog":"ホットドッグ","French fries":"フレンチフライ","fried chicken":"フライドチキン",
+  "sausage":"ソーセージ","steak":"ステーキ","omelet":"オムレツ","spaghetti":"スパゲティ",
+  "pie":"パイ","salad":"サラダ","soup":"スープ","fried noodles":"フライドヌードル",
+  "ramen":"ラーメン","soba":"ソバ","beef bowl":"ビーフボウル","sushi":"スシ","tempura":"テンプラ",
+
+  "coffee":"コーヒー","tea":"ティー","green tea":"グリーンティー",
+  "juice":"ジュース","soda":"ソーダ","milk":"ミルク","water":"ウォーター","mineral water":"ミネラルウォーター",
+
+  "cake":"ケーキ","donut":"ドーナツ","parfait":"パフェ","pudding":"プリン",
+  "ice cream":"アイスクリーム","shaved ice":"シェイブドアイス","chocolate":"チョコレート",
+  "cream puff":"シュークリーム","popcorn":"ポップコーン","potato chips":"ポテトチップス"
+};
+
+/* ========= メニュー名リスト ========= */
+const foodNames = [
+  "rice","rice ball","curry and rice","grilled eel","grilled fish",
+  "bread","sandwich","pancake","pizza","hamburger",
+  "hot dog","French fries","fried chicken","sausage","steak",
+  "omelet","spaghetti","pie","salad","soup",
+  "fried noodles","ramen","soba","beef bowl","sushi","tempura"
+];
+const drinkNames = [
+  "coffee","tea","green tea","juice","soda",
+  "milk","water","mineral water"
+];
+const dessertNames = [
+  "cake","donut","parfait","pudding","ice cream",
+  "shaved ice","chocolate","cream puff","popcorn","potato chips"
+];
+
+/* ========= 名前 → 画像ファイル名 ========= */
+function imgPath(type, name) {
+  const norm = name.toLowerCase().replace(/ /g, "_");
+  return `img/${type}_${norm}.png`;
+}
+
+/* 配列をオブジェクト化（name, kana, img） */
+const foods = foodNames.map(n => ({
+  name: n,
+  kana: reading[n] || "",
+  img: imgPath("food", n)
+}));
+const drinks = drinkNames.map(n => ({
+  name: n,
+  kana: reading[n] || "",
+  img: imgPath("drink", n)
+}));
+const desserts = dessertNames.map(n => ({
+  name: n,
+  kana: reading[n] || "",
+  img: imgPath("dessert", n)
+}));
+
+/* ========= 値段 ========= */
+const priceItems = [100,150,200,250,300,350,400,450,500,600,700,800,900,1000];
+const priceReading = {
+  100:  "ワンハンドレッドエン",
+  150:  "ワンハンドレッドフィフティーエン",
+  200:  "トゥーハンドレッドエン",
+  250:  "トゥーハンドレッドフィフティーエン",
+  300:  "スリーハンドレッドエン",
+  350:  "スリーハンドレッドフィフティーエン",
+  400:  "フォーハンドレッドエン",
+  450:  "フォーハンドレッドフィフティーエン",
+  500:  "ファイブハンドレッドエン",
+  600:  "シックスハンドレッドエン",
+  700:  "セブンハンドレッドエン",
+  800:  "エイトハンドレッドエン",
+  900:  "ナインハンドレッドエン",
+  1000: "ワンサウザンドエン"
+};
+
+/* ========= スロット回転処理 ========= */
+function spinImageReel(list, imgEl, textEl) {
+  let count = 0;
+  const maxCount = 20;
+  const timer = setInterval(() => {
+    const item = list[Math.floor(Math.random()*list.length)];
+    imgEl.src = item.img;
+    textEl.textContent = item.name + "\n" + item.kana;
+    playKorokoro();
+    count++;
+    if (count >= maxCount) {
+      clearInterval(timer);
+      playChiin();
+    }
+  }, 80);
+}
+
+function spinPrice() {
+  let count = 0;
+  const maxCount = 20;
+  const priceBox = document.getElementById("priceBox");
+  const priceReadingBox = document.getElementById("priceReading");
+  const timer = setInterval(() => {
+    const p = priceItems[Math.floor(Math.random()*priceItems.length)];
+    priceBox.textContent = p + " yen";
+    priceReadingBox.textContent = priceReading[p] || "";
+    playKorokoro();
+    count++;
+    if (count >= maxCount) {
+      clearInterval(timer);
+      playChiin();
+    }
+  }, 80);
+}
+
+/* ========= SPIN ALL ========= */
+const foodImg     = document.getElementById("foodImg");
+const foodText    = document.getElementById("foodText");
+const drinkImg    = document.getElementById("drinkImg");
+const drinkText   = document.getElementById("drinkText");
+const dessertImg  = document.getElementById("dessertImg");
+const dessertText = document.getElementById("dessertText");
+
+document.getElementById("spinAllBtn").addEventListener("click", () => {
+  spinImageReel(foods,    foodImg,    foodText);
+  spinImageReel(drinks,   drinkImg,   drinkText);
+  spinImageReel(desserts, dessertImg, dessertText);
+  spinPrice();
+});
+
+// 初期表示
+(function initOnce(){
+  const f = foods[0];
+  const d = drinks[0];
+  const ds = desserts[0];
+  foodImg.src = f.img;   foodText.textContent    = f.name + "\n" + f.kana;
+  drinkImg.src = d.img;  drinkText.textContent   = d.name + "\n" + d.kana;
+  dessertImg.src = ds.img; dessertText.textContent = ds.name + "\n" + ds.kana;
+  const p = priceItems[0];
+  document.getElementById("priceBox").textContent = p + " yen";
+  document.getElementById("priceReading").textContent = priceReading[p];
+})();
+</script>
+
+</body>
+</html>
